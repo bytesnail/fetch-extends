@@ -2,89 +2,80 @@
 
 var fetch = require('isomorphic-fetch');
 
-// FetchExtend实例钩子
-var FetchHandle = {}
-
-function getFetchHandle() {
-	var handle
-	do {
-		handle = parseInt(Math.random() * 90000000) + 10000000
-	} while (FetchHandle[handle])
-	return handle
-}
-
-function reduce(fns, type) {
-	fns.reduce(function(p, fn){
-		return p.then(...fn)
-	}, type ? Promise.resolve() : Promise.reject())
-}
+// FetchExtend实例数组
+var FetchIns = []
 
 // fetch扩展类
-function FetchExtend() {
-	this._fetchHandle = getFetchHandle(this)
+function FetchExtend(url, opts) {
+	var _this = this
+	this._status = 'pending'
 	this._thenFn = []
-	this._fetch = fetch(url, opts).then(
-		res => {
-			FetchHandle[this._fetchHandle] && (FetchHandle[this._fetchHandle] = true)
-		},
-		rej => {
-			FetchHandle[this._fetchHandle] && (FetchHandle[this._fetchHandle] = true)
-		}
-	)
+	this._fetch = fetch(url, opts).then(function(res){
+		_this._status === 'pending' && ( _this._status = 'resolved' )
+		Fetch.drop(_this)
+		return res
+	}, function(err){
+		_this._status === 'pending' && ( _this._status = 'rejected' )
+		Fetch.drop(_this)
+		return err
+	})
 }
 
 // 重构fetch的then & catch方法
 FetchExtend.prototype.then = function(resFn, rejFn) {
-	if (FetchHandle[this._fetchHandle]) {
+	var _this = this
+	if (this._status !== 'abort') {
 		this._thenFn.push([resFn, rejFn])
-		this._fetch.then(
-			res => {
-				return FetchHandle[this._fetchHandle] && resFn && resFn(res)
-			},
-			rej => {
-				return FetchHandle[this._fetchHandle] && rejFn && resFn(rej)
-			}
-		)
-	}
-	return this
-}
-
-FetchExtend.prototype.catch = function(catchFn) {
-	if (FetchHandle[this._fetchHandle]) {
-		this._thenFn.push([undefined, catchFn])
-		this._fetch.catch(res => {
-			return FetchHandle[this._fetchHandle] && catchFn && catchFn(res)
+		this._fetch.then(function(res){
+			return _this._status === 'resolved' && resFn && resFn(res)
+		}, function(rej){
+			return _this._status === 'rejected' && rejFn && resFn(rej)
 		})
 	}
 	return this
 }
 
-FetchExtend.prototype.abort = function() {
-	if (FetchHandle[handle] instanceof FetchExtend) {
-		Fetch.clear(this._fetchHandle)
-		return reduce(this._thenFn)
-	} else {
-		console.log('fetch实例不存在或已获取Promise结果')
+FetchExtend.prototype.catch = function(catchFn) {
+	var _this = this
+	if (this._status !== 'abort') {
+		this._thenFn.push([undefined, catchFn])
+		this._fetch.catch(function(res){
+			return _this._status === 'rejected' && catchFn && catchFn(res)
+		})
 	}
+	return this
 }
 
-FetchExtend.prototype.getHandle = function() {
-	return this._fetchHandle
+FetchExtend.prototype.abort = function(res) {
+	if (this._status === 'pending') {
+		this._status = 'abort'
+		this._thenFn.reduce(function(p, fn){
+			return p.then(...fn)
+		}, Promise.reject(res || 'abort'))
+		return Fetch.drop(this)
+	} else {
+		console.log('fetch实例已获取结果, 无法终止请求')
+	}
 }
 
 // 输出FetchExtend实例
 function Fetch(url, opts) {
-	var ins = new FetchExtend(url, opts)
-	FetchHandle[ins.getHandle()] = ins
+	if (!url) return
+	var ins = new FetchExtend(url, opts || {})
+	FetchIns.push(ins)
 	return ins
 }
 
-Fetch.clear = function(handle) {
-	delete FetchHandle[handle]
+Fetch.clear = function() {
+	FetchIns.forEach(function(fetch){
+		fetch.abort()
+	})
+	FetchIns = []
 }
 
-Fetch.clearAll = function() {
-	FetchHandle = {}
+Fetch.drop = function(ins) {
+	var index = FetchIns.indexOf(ins)
+	FetchIns.splice(index, 1)
 }
 
 module.exports = Fetch

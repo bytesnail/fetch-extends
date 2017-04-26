@@ -1,9 +1,9 @@
 # Extends Fetch APIs
 
-解决fetch请求发出后, 不能被忽略的问题
+扩展 Fetch API
 
 ## API
-* abort 忽略请求结果, 不执行处理程序
+* abort 终止接受请求结果, 立即执行处理程序
 
 ## TODO
 * hold 暂存请求结果, 不执行处理程序
