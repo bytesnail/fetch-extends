@@ -1,6 +1,6 @@
 {
   "name": "fetch-extends",
-  "version": "0.2.1",
+  "version": "1.1.0",
   "description": "extends fetch api",
   "main": "src/index.js",
   "scripts": {

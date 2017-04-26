@@ -36,7 +36,7 @@ FetchExtend.prototype.then = function(resFn, rejFn) {
 	var _this = this
 	if (this._status !== 'abort') {
 		this._thenFn.push([resFn, rejFn])
-		this._fetch.then(function(res){
+		this._fetch = this._fetch.then(function(res){
 			return _this._status === 'resolved' && resFn && resFn(res)
 		}, function(rej){
 			return _this._status === 'rejected' && rejFn && resFn(rej)
@@ -48,8 +48,8 @@ FetchExtend.prototype.then = function(resFn, rejFn) {
 FetchExtend.prototype.catch = function(catchFn) {
 	var _this = this
 	if (this._status !== 'abort') {
-		this._thenFn.push([undefined, catchFn])
-		this._fetch.catch(function(res){
+		this._thenFn.push([null, catchFn])
+		this._fetch = this._fetch.catch(function(res){
 			return _this._status === 'rejected' && catchFn && catchFn(res)
 		})
 	}
@@ -60,9 +60,9 @@ FetchExtend.prototype.abort = function(res) {
 	if (this._status === 'pending') {
 		this._status = 'abort'
 		FetchIns_Delete(this)
-		return this._thenFn.reduce(function(p, fn){
-			return p.then(...fn)
-		}, Promise.reject(res || 'abort'))
+		return this._thenFn.reduce(function(res, fn){
+			return fn[1] instanceof Function ? fn[1](res) : res
+		}, res || 'abort')
 	} else {
 		console.log('fetch实例已获取结果, 无法终止请求')
 	}
