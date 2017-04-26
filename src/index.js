@@ -1,63 +1,90 @@
-import fetch from 'isomorphic-fetch'
+'use strict';
 
-export default class Fetch {
-	static handle = {}
-	static getHandle = (instance) => {
-		let handle
-		do {
-			handle = parseInt(Math.random() * 90000000) + 10000000
-		} while (Fetch.handle[handle])
-		Fetch.handle[handle] = instance
-		return handle
-	}
-	static create = (url, opts) => {
-		return new Fetch(url, opts)
-	}
-	static clear = (handle) => {
-		let result = Fetch.handle[handle] instanceof Fetch
-		delete Fetch.handle[handle]
-		return result
-	}
-	static clearAll = () => {
-		Fetch.handle = {}
-	}
-	static reduce = (fns, type) => {
-		fns.reduce(function(p, fn){
-			return p.then(...fn)
-		}, type ? Promise.resolve() : Promise.reject())
-	}
-	constructor(url, opts) {
-		this._fetchHandle = Fetch.getHandle(this)
-		this._thenFn = []
-		this._fetch = fetch(url, opts).then(
-			res => {
-				Fetch.handle[this._fetchHandle] && (Fetch.handle[this._fetchHandle] = true)
-			},
-			rej => {
-				Fetch.handle[this._fetchHandle] && (Fetch.handle[this._fetchHandle] = true)
-			}
-		)
-	}
-	then = (resFn, rejFn) => {
+var fetch = require('isomorphic-fetch');
+
+// FetchExtend实例钩子
+var FetchHandle = {}
+
+function getFetchHandle() {
+	var handle
+	do {
+		handle = parseInt(Math.random() * 90000000) + 10000000
+	} while (FetchHandle[handle])
+	return handle
+}
+
+function reduce(fns, type) {
+	fns.reduce(function(p, fn){
+		return p.then(...fn)
+	}, type ? Promise.resolve() : Promise.reject())
+}
+
+// fetch扩展类
+function FetchExtend() {
+	this._fetchHandle = getFetchHandle(this)
+	this._thenFn = []
+	this._fetch = fetch(url, opts).then(
+		res => {
+			FetchHandle[this._fetchHandle] && (FetchHandle[this._fetchHandle] = true)
+		},
+		rej => {
+			FetchHandle[this._fetchHandle] && (FetchHandle[this._fetchHandle] = true)
+		}
+	)
+}
+
+// 重构fetch的then & catch方法
+FetchExtend.prototype.then = function(resFn, rejFn) {
+	if (FetchHandle[this._fetchHandle]) {
 		this._thenFn.push([resFn, rejFn])
 		this._fetch.then(
 			res => {
-				return Fetch.handle[this._fetchHandle] && resFn && resFn(res)
+				return FetchHandle[this._fetchHandle] && resFn && resFn(res)
 			},
 			rej => {
-				return Fetch.handle[this._fetchHandle] && rejFn && resFn(rej)
+				return FetchHandle[this._fetchHandle] && rejFn && resFn(rej)
 			}
 		)
-		return this
 	}
-	catch = (catchFn) => {
+	return this
+}
+
+FetchExtend.prototype.catch = function(catchFn) {
+	if (FetchHandle[this._fetchHandle]) {
 		this._thenFn.push([undefined, catchFn])
 		this._fetch.catch(res => {
-			return Fetch.handle[this._fetchHandle] && catchFn && catchFn(res)
+			return FetchHandle[this._fetchHandle] && catchFn && catchFn(res)
 		})
-		return this
 	}
-	abort = () => {
-		return Fetch.clear(this._fetchHandle) && Fetch.reduce(this._thenFn)
+	return this
+}
+
+FetchExtend.prototype.abort = function() {
+	if (FetchHandle[handle] instanceof FetchExtend) {
+		Fetch.clear(this._fetchHandle)
+		return reduce(this._thenFn)
+	} else {
+		console.log('fetch实例不存在或已获取Promise结果')
 	}
 }
+
+FetchExtend.prototype.getHandle = function() {
+	return this._fetchHandle
+}
+
+// 输出FetchExtend实例
+function Fetch(url, opts) {
+	var ins = new FetchExtend(url, opts)
+	FetchHandle[ins.getHandle()] = ins
+	return ins
+}
+
+Fetch.clear = function(handle) {
+	delete FetchHandle[handle]
+}
+
+Fetch.clearAll = function() {
+	FetchHandle = {}
+}
+
+module.exports = Fetch
