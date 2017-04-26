@@ -1,0 +1,19 @@
+{
+  "name": "fetch-extends",
+  "version": "1.0.0",
+  "description": "解决fetch请求发出后, 不能被忽略的问题",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bytesnail/fetch-extends.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/bytesnail/fetch-extends/issues"
+  },
+  "homepage": "https://github.com/bytesnail/fetch-extends#readme"
+}
